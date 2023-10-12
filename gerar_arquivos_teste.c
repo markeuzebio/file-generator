@@ -5,7 +5,32 @@
 
 #include "gerar_arquivos_teste.h"
 
-Registro* alocarRegistros(int n)
+void gerarArquivoTxt(FILE *arq)
+{
+    Registro reg;
+    FILE *aux;
+
+    aux = fopen("registros.txt", "w");
+
+    rewind(arq);
+
+    while(fread(&reg, sizeof(Registro), 1, arq) == 1)
+        fprintf(aux, "%-10d\t%-15ld\t%s\n", reg.chave, reg.valor, reg.string);
+
+    fclose(aux);
+}
+
+// void printB(FILE *arq)
+// {
+//     Registro reg;
+
+//     rewind(arq);
+
+//     while(fread(&reg, sizeof(Registro), 1, arq) == 1)
+//         printf("%-10d\t%-15ld\t%s\n", reg.chave, reg.valor, reg.string);
+// }
+
+Registro* alocarRegistros(long n)
 {
     Registro *registros = (Registro*) malloc(n * sizeof(Registro));
 
@@ -25,94 +50,64 @@ void gerarStringAleatoria(char titulo[TAM_TITULO])
     titulo[TAM_TITULO - 1] = '\0';
 }
 
-void preencheTxtComRegistros(FILE* arq, int n)
+void preencheArquivoBinario(FILE* arq, Registro *registros, int n)
 {
-    Registro auxiliar;
+    int i;
 
-    for(int i = 0 ; i < n ; i++)
+    for(i = 0 ; i < n ; i++)
     {
-        gerarStringAleatoria(auxiliar.titulo);
-        auxiliar.chave = i + 1;
-        auxiliar.preco = (2000 + (rand() % 10000 + 1)) / 100.0;
+        if(i != 0 && i % TAM_REGISTRO == 0)
+            fwrite(registros, sizeof(Registro), TAM_REGISTRO, arq);
 
-        fprintf(arq, "%-30s\t%-4d\t%-6.2f\n", auxiliar.titulo, auxiliar.chave, auxiliar.preco);
+        registros[i % TAM_REGISTRO].chave = i + 1;
+        registros[i % TAM_REGISTRO].valor = (long int)rand() << sizeof (long int);
+        gerarStringAleatoria(registros[i % TAM_REGISTRO].string);
     }
-}
 
-// PROPOSITOS DE TESTE
-// void printR(Registro *registros, int n)
-// {
-//     for(int i = 0 ; i < n ; i++)
-//         printf("%s\t%-4d\t%-6.2f\n", registros[i].titulo, registros[i].chave, registros[i].preco);
-// }
-
-// PROPOSITOS DE TESTE
-// void printB(FILE *arq)
-// {
-//     Registro reg;
-
-//     rewind(arq);
-
-//     while(fread(&reg, sizeof(Registro), 1, arq) == 1)
-//         printf("%s\t%-4d\t%-6.2f\n", reg.titulo, reg.chave, reg.preco);
-// }
-
-FILE* gerarArquivoBinario(char *nome, Registro *registros, int n)
-{
-    FILE* arq = fopen(nome, "wb");
-
-    if(arq == NULL)
-        return NULL;
-
-    fwrite(registros, sizeof(Registro), n, arq);
-
-    return arq;
+    fwrite(registros, sizeof(Registro), i % TAM_REGISTRO, arq);
 }
 
 int main(int argc, char** argv)
 {
-    FILE *arquivo_texto, *arquivo_binario;
     int quantidade_linhas;
+    FILE *arquivo_binario;
+    Registro *registros;
 
     if(argc != 2)
     {
         printf("Utilizacao errada do programa! Execute de acordo:\n\n");
         printf("\"%s <quantidade de linhas para o arquivo gerado>\"\n", argv[0]);
         return 1;
-    }
-
-    if((quantidade_linhas = atoi(argv[1])) == 0)
+    } 
+    else if((quantidade_linhas = atoi(argv[1])) == 0)
     {
         printf("O segundo argumento deve ser um valor numerico valido!\n");
         return 1;
     }
 
-    // PROPOSITOS DE TESTE
-    // if((registros = alocarRegistros(TAM_PAGINA)) == NULL)
-    // {
-    //     printf("Algum erro ocorreu na alocacao de registros. Abortando o programa...\n");
-    //     return 1;
-    // }
+    if((registros = alocarRegistros(TAM_REGISTRO)) == NULL)
+    {
+        printf("Erro na alocacao de registros!\n");
+        return 1;
+    }
+
+    if((arquivo_binario = fopen("registros.bin", "w+b")) == NULL)
+    {
+        printf("Erro na abertura do arquivo binario!\n");
+        return 1;
+    }
 
     srand(time(NULL));
 
-    if((arquivo_texto = fopen("livros.txt", "w+")) == NULL)
-        printf("Algum erro ocorreu na tentativa de criar o arquivo livros.txt\n");
+    preencheArquivoBinario(arquivo_binario, registros, quantidade_linhas);
 
-    preencheTxtComRegistros(arquivo_texto, quantidade_linhas);
+    // printB(arquivo_binario);
 
-    // printR(registros, quantidade_linhas);        // PROPOSITOS DE TESTE
+    gerarArquivoTxt(arquivo_binario);
 
-    // else if((arquivo_binario = gerarArquivoBinario("livros.bin", registros, quantidade_linhas)) == NULL)
-    //     printf("Algum erro ocorreu na tentativa de criar o arquivo livros.bin\n");
-    // else
-    //     printf("Arquivos \"livros.txt\" e \"livros.bin\" criados com sucesso! Encerrando a execução do programa...\n");
+    liberaRegistros(&registros);
 
-    // printB(arquivo_binario);     // PROPOSITOS DE TESTE
-    
-    // liberaRegistros(&registros); // PROPOSITOS DE TESTE
-    fclose(arquivo_texto);
-    // fclose(arquivo_binario);
+    fclose(arquivo_binario);
 
     return 0;
 }
